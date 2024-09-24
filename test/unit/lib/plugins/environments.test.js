@@ -1093,7 +1093,7 @@ describe('nopifyRequest', () => {
     const result = await plugin.nopifyRequest(url, options, description);
 
     expect(result).toEqual([
-      new NopCommand('Environments', { owner: org, repo }, url, description)
+      new NopCommand('Environments', { owner: org, repo }, {url, body: options}, description)
     ]);
   });
 });
