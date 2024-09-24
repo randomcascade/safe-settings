@@ -139,5 +139,42 @@ describe('Settings Tests', () => {
         expect(settings.isRestricted('my-repo')).toEqual(false)
       })
     })
+
+    describe('archived repositories', () => {
+      beforeEach(() => {
+        stubConfig = {
+          restrictedRepos: {}
+        }
+        stubContext.octokit.repos = {
+          get: jest.fn().mockImplementation(({ owner, repo }) => {
+            if (repo === 'my-repo') {
+              return Promise.resolve({
+                data: {
+                  archived: true
+                }
+              })
+            } else if (repo === 'another-repo') {
+              return Promise.resolve({
+                data: {
+                  archived: false
+                }
+              })
+            }
+          }),
+          getContent: jest.fn().mockResolvedValue({ data: { content: Buffer.from('') } })
+        }
+      stubContext.octokit.paginate = jest.fn().mockResolvedValue([
+        { name: 'my-repo', owner: { login: 'my-org' }, archived: true },
+        { name: 'another-repo', owner: { login: 'my-org'}, archived: false }
+      ])
+    })
+
+      it('Skipping archived repository from being configured', async () => {
+        settings = createSettings(stubConfig)
+        const result = await settings.eachRepositoryRepos(stubContext.octokit, stubContext.log)
+        expect(result).toEqual([null])
+        expect(stubContext.log.debug).toHaveBeenCalledWith('Skipping repo: my-repo as it is archived')
+      })
+    })
   }) // restrictedRepos
 }) // Settings Tests
