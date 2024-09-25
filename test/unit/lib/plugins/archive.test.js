@@ -11,45 +11,58 @@ describe('Archive Plugin', () => {
   beforeEach(() => {
     github = {
       repos: {
-        get: jest.fn()
+        get: jest.fn(),
+        update: jest.fn()
       }
     };
     log = {
       debug: jest.fn(),
-      error: jest.fn()
     };
     repo = { owner: 'test-owner', repo: 'test-repo' };
     settings = {};
-    nop = new NopCommand();
+    nop = false;
   });
 
-  it('should return false if the repository is archived', async () => {
+  it('should return false if the repository is archived and settings.archived is true', async () => {
     github.repos.get.mockResolvedValue({ data: { archived: true } });
+    settings.archived = true;
 
     const archive = new Archive(nop, github, repo, settings, log);
     const result = await archive.sync();
 
     expect(result.shouldContinue).toBe(false);
-    expect(log.debug).toHaveBeenCalledWith('Repo test-owner/test-repo is archived, ignoring.');
   });
 
-  it('should return true if the repository is not archived', async () => {
+  it('should return true if the repository is archived and settings.archived is false', async () => {
+    github.repos.get.mockResolvedValue({ data: { archived: true } });
+    settings.archived = false;
+
+    const archive = new Archive(nop, github, repo, settings, log);
+    const result = await archive.sync();
+
+    expect(result.shouldContinue).toBe(true);
+    expect(log.debug).toHaveBeenCalledWith('Unarchiving test-owner/test-repo');
+  });
+
+  it('should return false if the repository is not archived and settings.archived is true', async () => {
     github.repos.get.mockResolvedValue({ data: { archived: false } });
+    settings.archived = true;
 
     const archive = new Archive(nop, github, repo, settings, log);
     const result = await archive.sync();
 
-    expect(result.shouldContinue).toBe(true);
-    expect(log.debug).toHaveBeenCalledWith('Repo test-owner/test-repo is not archived, proceed as usual.');
+    expect(result.shouldContinue).toBe(false);
+    expect(log.debug).toHaveBeenCalledWith('Archiving test-owner/test-repo');
   });
 
-  it('should handle errors gracefully', async () => {
-    github.repos.get.mockRejectedValue(new Error('API error'));
+  it('should return true if the repository is not archived and settings.archived is false', async () => {
+    github.repos.get.mockResolvedValue({ data: { archived: false } });
+    settings.archived = false;
 
     const archive = new Archive(nop, github, repo, settings, log);
     const result = await archive.sync();
 
     expect(result.shouldContinue).toBe(true);
-    expect(log.error).toHaveBeenCalledWith('Error fetching repository details: Error: API error');
+    expect(log.debug).toHaveBeenCalledWith('Repo test-owner/test-repo is not archived, ignoring.');
   });
 });
